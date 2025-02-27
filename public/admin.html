@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Espace Administrateur</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div class="admin-container">
+  <h1>Espace Administrateur</h1>
+  <p style="text-align:right;"><a href="/logout">Se déconnecter</a></p>
+
+  <div class="admin-tabs">
+    <button class="admin-tab-btn" data-tab="cal-tab">Calendrier</button>
+    <button class="admin-tab-btn" data-tab="blocks-tab">Blocages/Vacances</button>
+    <button class="admin-tab-btn" data-tab="hours-tab">Horaires</button>
+  </div>
+
+  <!-- Calendrier admin -->
+  <div class="admin-tab-content" id="cal-tab" style="display:none;">
+    <h2>Calendrier des Rendez-vous</h2>
+    <div class="admin-cal-wrapper">
+      <button class="admin-cal-btn cal-admin-prev">← Mois précédent</button>
+      <h4 id="admin-cal-title"></h4>
+      <button class="admin-cal-btn cal-admin-next">Mois suivant →</button>
+    </div>
+    <div id="admin-month-calendar" class="month-calendar" style="margin-bottom:20px;"></div>
+
+    <h3>Liste des rendez-vous du <span id="admin-chosen-day"></span></h3>
+    <button id="admin-add-rdv-btn" style="margin-bottom:10px;">Ajouter un RDV</button>
+    <table id="admin-day-appointments-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Titre</th>
+          <th>Début</th>
+          <th>Fin</th>
+          <th>Téléphone</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- dynamically filled -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Blocages / Vacances -->
+  <div class="admin-tab-content" id="blocks-tab" style="display:none;">
+    <h2>Blocages & Vacances</h2>
+    <form id="block-form">
+      <label>Début : <input type="datetime-local" name="start" required/></label>
+      <label>Fin : <input type="datetime-local" name="end" required/></label>
+      <label>Raison : <input type="text" name="reason"/></label>
+      <button type="submit">Ajouter blocage</button>
+    </form>
+    <form id="vacation-form" style="margin-top:20px;">
+      <label>Début : <input type="datetime-local" name="start" required/></label>
+      <label>Fin : <input type="datetime-local" name="end" required/></label>
+      <label>Raison : <input type="text" name="reason" value="Vacances"/></label>
+      <button type="submit">Ajouter vacances</button>
+    </form>
+    <h3 style="margin-top:20px;">Liste des blocages/vacances</h3>
+    <table id="blocks-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Début</th>
+          <th>Fin</th>
+          <th>Type</th>
+          <th>Raison</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- dynamically filled -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Horaires -->
+  <div class="admin-tab-content" id="hours-tab" style="display:none;">
+    <h2>Horaires d'ouverture</h2>
+    <p>Définissez pour chaque jour les horaires (HH:MM). Laissez vide pour fermer le jour.</p>
+    <table id="hours-table">
+      <thead>
+        <tr>
+          <th>Jour</th>
+          <th>Début</th>
+          <th>Fin</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- dynamically filled -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Popup to add new RDV -->
+<div id="admin-add-rdv-popup" class="admin-rdv-popup" style="display:none;">
+  <div class="admin-rdv-popup-content">
+    <h3>Ajouter un nouveau RDV</h3>
+    <form id="admin-add-rdv-form">
+      <label>Titre (nom du client) :<br>
+        <input type="text" name="title" required>
+      </label>
+      <br>
+      <label>Heure début :<br>
+        <input type="datetime-local" name="start" required>
+      </label>
+      <br>
+      <label>Heure fin :<br>
+        <input type="datetime-local" name="end" required>
+      </label>
+      <br>
+      <label>Téléphone :<br>
+        <input type="text" name="phone" required>
+      </label>
+      <br><br>
+      <button type="submit" class="delete-rdv-btn">Enregistrer</button>
+      <button type="button" class="delete-rdv-btn" id="admin-cancel-add">Annuler</button>
+    </form>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
