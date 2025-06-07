@@ -1,4 +1,4 @@
-/* RESET & BASE */
+/* --- RESET & VARIABLES --- */
 * {
   margin: 0;
   padding: 0;
@@ -8,58 +8,28 @@
   --theme-red: #d47463;
   --theme-red-hover: #bd5c4c;
   --theme-fonce: #2b2b2b;
-  --theme-bg: #fce8e0;
-  --theme-card: #fceee6;
+  --theme-bg: #fdf6f3;
+  --theme-card: #fff;
+  --border-color: #f0e2da;
   --font-fancy: "Brush Script MT", cursive, sans-serif;
+  --font-main: 'Raleway', sans-serif;
 }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Raleway', sans-serif;
+  font-family: var(--font-main);
   background: var(--theme-bg);
   color: #333;
   line-height: 1.6;
-  font-size: 16px;
 }
-/* HEADER */
-.site-header {
-  background: var(--theme-red);
-  padding: 30px 20px;
-  color: #fff;
-  text-align: center;
+a {
+    color: var(--theme-red);
+    text-decoration: none;
 }
-.header-overlay { position: relative; }
-.site-title {
-  font-size: 3.6rem;
-  font-family: var(--font-fancy);
-  margin-bottom: 0;
+a:hover {
+    text-decoration: underline;
 }
-/* NAV */
-nav {
-  background: var(--theme-red);
-  text-align: center;
-  padding: 10px 0;
-}
-nav ul {
-  list-style: none;
-  display: inline-flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin: 0;
-}
-nav li a {
-  color: #fff;
-  text-decoration: none;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  transition: background 0.3s;
-}
-nav li a:hover {
-  background: var(--theme-red-hover);
-}
-/* MAIN WRAPPER */
+
+/* --- STRUCTURE & MISE EN PAGE --- */
 main {
   max-width: 1200px;
   margin: 40px auto;
@@ -67,536 +37,305 @@ main {
 }
 section {
   margin-bottom: 60px;
-  padding: 20px 0;
+  padding-top: 20px;
 }
-section h2 {
-  font-size: 22px;
+h2 {
+  font-size: 2rem;
   font-weight: 700;
-  margin-bottom: 15px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #ccc;
+  margin-bottom: 25px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border-color);
   color: var(--theme-fonce);
-}
-/* SALON IMG */
-.salon-illustration {
-  margin-top: 20px;
   text-align: center;
 }
-.salon-illustration img {
-  max-width: 100%;
-  height: auto;
-  border: 3px solid #ccc;
-  border-radius: 6px;
-  box-shadow: 0 0 8px rgba(0,0,0,0.15);
+h3 {
+    margin-bottom: 15px;
+    color: var(--theme-fonce);
+    font-size: 1.5rem;
 }
-/* TARIF TABLE */
-.tarif-table {
-  border-collapse: collapse;
-  background: #fff;
+h4 {
+    font-size: 1.2rem;
+    color: var(--theme-fonce);
 }
-.big-tarif-table {
-  width: 100%;
-  table-layout: fixed;
-}
-.tarif-table th,
-.tarif-table td {
-  border: 1px solid #ccc;
-  padding: 12px;
-  font-size: 14px;
-}
-.tarif-section-title {
-  background: #f2f2f2;
-  font-weight: 700;
-  text-align: center;
-}
-.price-cell {
-  text-align: right;
-  width: 100px;
-}
-/* SERVICE ITEM */
-.service-item {
-  background: var(--theme-card);
-  padding: 15px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  margin-bottom: 15px;
-}
-.service-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--theme-fonce);
-}
-.service-info {
-  font-size: 14px;
-  color: #666;
-}
-.choose-service-btn {
-  background: var(--theme-red);
+
+/* --- HEADER & NAVIGATION --- */
+.site-header {
+  padding: 40px 20px;
   color: #fff;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  transition: background 0.3s;
-}
-.choose-service-btn:hover {
-  background: var(--theme-red-hover);
-}
-/* CALENDAR (MONTH) */
-.calendar-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  margin-top: 20px;
-}
-.calendar-nav-btn {
-  background: #fff;
-  border: 1px solid var(--theme-red);
-  border-radius: 4px;
-  cursor: pointer;
-  padding: 6px 12px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--theme-red);
-  transition: background 0.3s, color 0.3s;
-}
-.calendar-nav-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.calendar-nav-btn:hover:not(:disabled) {
-  background: var(--theme-red);
-  color: #fff;
-}
-.calendar-scroll {
-  flex: 1;
-  overflow-x: auto;
-  margin: 0 15px;
-  padding: 10px 0;
   text-align: center;
-}
-#month-title {
-  font-weight: 700;
-  margin-bottom: 10px;
-  font-size: 16px;
-  color: var(--theme-fonce);
-}
-.month-calendar {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.month-cal-row {
-  display: flex;
-  gap: 5px;
-  justify-content: space-between;
-}
-.month-cal-cell {
-  background: #fff;
-  flex: 1;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  font-size: 14px;
-  color: var(--theme-fonce);
-}
-.month-cal-header {
-  background: #f5f5f5;
-  font-weight: 700;
-}
-.month-cal-empty {
-  background: #f0f0f0;
-}
-.month-cal-day {
-  cursor: pointer;
-  transition: background 0.3s;
-}
-.day-past {
-  background: #ddd;
-  color: #888;
-  cursor: not-allowed;
-}
-.day-closed {
-  background: #eee;
-  color: #aaa;
-  cursor: not-allowed;
-}
-.month-cal-day:hover:not(.day-past):not(.day-closed) {
-  background: var(--theme-red-hover);
-  color: #fff;
-}
-.selected-day {
-  background: var(--theme-red) !important;
-  color: #fff !important;
-}
-/* Step2b timeslots */
-#timeslots-container .slot-btn {
-  margin: 5px;
-  background: #fff;
-  border: 1px solid var(--theme-red);
-  color: var(--theme-red);
-  padding: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  transition: background 0.3s;
-}
-#timeslots-container .slot-btn:hover {
-  background: var(--theme-red);
-  color: #fff;
-}
-.same-day-msg {
-  background: #fff0f0;
-  border: 1px solid #ffa0a0;
-  color: #a33;
-  padding: 10px;
-  margin-top: 20px;
-  border-radius: 4px;
-  text-align: center;
-}
-/* LOADING & ERROR */
-#loading-spinner {
-  display: none;
-  text-align: center;
-  color: var(--theme-red);
-  margin-top: 10px;
-  font-weight: 700;
-}
-#error-message {
-  display: none;
-  color: red;
-  text-align: center;
-  margin-top: 10px;
-  font-weight: 700;
-}
-/* BOOKING FORM */
-#booking-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 300px;
-  margin-top: 10px;
-}
-#booking-form label {
-  font-weight: 600;
-  font-size: 14px;
-}
-#booking-form input {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-}
-#booking-form button {
-  background: var(--theme-red);
-  color: #fff;
-  border: none;
-  padding: 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  transition: 0.3s;
-}
-#booking-form button:hover {
-  background: var(--theme-red-hover);
-}
-/* EXPO CAROUSEL */
-.expo-container {
-  position: relative;
-  width: 100%;
-  max-width: 900px;
-  height: 500px; 
-  margin: 20px auto;
-  overflow: hidden;
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 0 6px rgba(0,0,0,0.15);
-}
-.expo-container img {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: none;
-}
-.expo-controls {
-  position: absolute;
-  top: 50%;
-  width: 100%;
-  transform: translateY(-50%);
-  display: flex;
-  justify-content: space-between;
-}
-.expo-prev, .expo-next {
-  background: rgba(255,255,255,0.8);
-  border: 1px solid var(--theme-red);
-  color: var(--theme-red);
-  cursor: pointer;
-  font-size: 20px;
-  padding: 8px 12px;
-  margin: 0 10px;
-  border-radius: 4px;
-  transition: background 0.3s, color 0.3s;
-}
-.expo-prev:hover, .expo-next:hover {
-  background: var(--theme-red);
-  color: #fff;
-}
-.expo-dots-container {
-  position: absolute;
-  bottom: 15px;
-  width: 100%;
-  text-align: center;
-}
-.expo-dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin: 0 5px;
-  background-color: #ddd;
-  border-radius: 50%;
-  cursor: pointer;
-}
-.expo-dot.active-expo-dot {
   background-color: var(--theme-red);
 }
-/* FOOTER */
-footer {
-  margin-top: 40px;
+.site-title {
+  font-size: 4rem;
+  font-family: var(--font-fancy);
 }
-/* LOGIN PAGE */
-.login-container {
-  max-width: 400px;
-  margin: 100px auto;
-  background: #fff;
-  border-radius: 6px;
-  padding: 20px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+nav {
+  background: var(--theme-red);
   text-align: center;
+  padding: 10px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-.login-container h1 {
-  margin-bottom: 20px;
-  font-size: 20px;
-}
-#login-form input {
-  display: block;
-  width: 100%;
-  margin: 10px 0;
-  padding: 10px;
-  font-size: 14px;
-}
-#login-form button {
-  background: var(--theme-red);
-  color: #fff;
-  border: none;
-  padding: 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  transition: background 0.3s;
-}
-#login-form button:hover {
-  background: var(--theme-red-hover);
-}
-.login-error {
-  margin-top: 10px;
-  font-weight: 700;
-}
-/* ADMIN PAGE */
-.admin-container {
-  max-width: 1000px;
-  margin: 40px auto;
-  padding: 20px;
-}
-.admin-container h1 {
-  margin-bottom: 10px;
-}
-.admin-tabs {
-  margin-bottom: 20px;
-}
-.admin-tab-btn {
-  background: var(--theme-red);
-  color: #fff;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin-right: 5px;
-  cursor: pointer;
-  font-weight: 700;
-}
-.admin-tab-btn:hover {
-  background: var(--theme-red-hover);
-}
-.admin-tab-content {
-  background: #fff;
-  border-radius: 6px;
-  padding: 20px;
-  box-shadow: 0 0 6px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-}
-.admin-tab-content h2 {
-  margin-top: 0;
-}
-.admin-tab-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  background: #fff;
-}
-.admin-tab-content th,
-.admin-tab-content td {
-  border: 1px solid #ccc;
-  padding: 10px;
-  text-align: left;
-  font-size: 14px;
-}
-.delete-rdv-btn,
-.delete-block-btn,
-.save-hour-btn,
-.admin-cal-btn {
-  background: var(--theme-red);
-  color: #fff;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 12px;
-  transition: background 0.3s;
-}
-.delete-rdv-btn:hover,
-.delete-block-btn:hover,
-.save-hour-btn:hover,
-.admin-cal-btn:hover {
-  background: var(--theme-red-hover);
-}
-#block-form, #vacation-form {
+nav ul {
+  list-style: none;
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  margin-top: 10px;
-}
-#block-form label,
-#vacation-form label {
-  display: flex;
-  flex-direction: column;
-  font-size: 14px;
-  font-weight: 600;
-}
-#block-form input,
-#vacation-form input {
-  margin-top: 3px;
-  padding: 6px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-#block-form button,
-#vacation-form button {
-  margin-bottom: 0;
-}
-.admin-cal-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 15px;
-  margin-bottom: 20px;
-}
-.month-cal-day.admin-cal-day {
-  background: #fff;
-  position: relative;
-  min-height: 70px;
-}
-/* admin day-appointments table */
-#admin-day-appointments-table {
-  border: 1px solid #ccc;
-}
-/* Popup for adding RDV */
-.success-popup {
-  position: fixed; 
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: none;
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: center;
-  z-index: 9999;
 }
-.success-popup-content {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px 30px;
-  max-width: 320px;
-  width: 90%;
-  text-align: center;
-  box-shadow: 0 0 10px rgba(0,0,0,0.2);
-}
-.success-popup-content h3 {
-  margin-top: 0;
-}
-#close-success-popup {
-  background: var(--theme-red);
+nav li a {
   color: #fff;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 4px;
-  cursor: pointer;
   font-weight: 700;
-  margin-top: 15px;
+  font-size: 1rem;
+  padding: 8px 15px;
+  border-radius: 20px;
+  transition: background-color 0.3s;
 }
-#close-success-popup:hover {
+nav li a:hover {
   background: var(--theme-red-hover);
+  text-decoration: none;
 }
 
-/* RESPONSIVE */
-@media (max-width: 768px) {
-  .site-title {
-    font-size: 2.4rem;
-  }
-  nav ul {
+/* --- DESIGN PRISE DE RDV --- */
+#booking-container {
+    background: var(--theme-card);
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+#booking-services h3 {
+    text-align: center;
+}
+#service-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+}
+.service-item {
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.service-item:hover, .service-item.selected {
+  border-color: var(--theme-red);
+  background-color: #fff7f5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(212, 116, 99, 0.1);
+}
+.service-title {
+  font-weight: 700;
+  color: var(--theme-fonce);
+}
+
+#booking-main {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 30px;
+    margin-top: 30px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 30px;
+}
+.hidden { display: none !important; }
+.booking-calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.booking-calendar-header button {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+.booking-calendar-header button:hover:not(:disabled) {
+    background-color: var(--theme-red);
+    color: white;
+    border-color: var(--theme-red);
+}
+.booking-calendar-header button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+.calendar-day, .calendar-day-name {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+    border-radius: 50%;
+}
+.calendar-day-name { font-weight: 700; font-size: 0.9rem; color: #999; }
+.calendar-day.inactive { color: #ccc; cursor: not-allowed; }
+.calendar-day.available { cursor: pointer; transition: all 0.2s; }
+.calendar-day.available:hover { background-color: #fceee6; }
+.calendar-day.selected { background-color: var(--theme-red); color: white; font-weight: 700; }
+
+#booking-slots-view h4 { margin-bottom: 15px; }
+#slots-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 10px;
-  }
-  .month-cal-cell {
-    font-size: 12px;
-  }
-  .slot-btn {
-    font-size: 12px;
-    padding: 6px;
-  }
-  .admin-container {
-    padding: 15px;
-  }
-  .admin-tab-btn {
-    font-size: 12px;
-    padding: 6px 10px;
-  }
-  #block-form, #vacation-form {
-    flex-wrap: wrap;
-  }
-  .month-cal-day.admin-cal-day {
-    height: 60px;
-  }
+    max-height: 300px;
+    overflow-y: auto;
 }
-@media (max-width: 480px) {
-  .site-title {
-    font-size: 2rem;
-  }
-  nav li a {
-    font-size: 12px;
-    padding: 5px 8px;
-  }
-  .delete-rdv-btn, .delete-block-btn {
-    font-size: 11px;
-    padding: 5px 8px;
-  }
-  #login-form input {
-    font-size: 12px;
-  }
+.slot-btn {
+    background-color: var(--theme-red);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+.slot-btn:hover { background-color: var(--theme-red-hover); transform: scale(1.05); }
+.slots-placeholder { color: #888; }
 
+
+/* --- CARROUSEL --- */
+.carousel-container {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: 20px auto;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    aspect-ratio: 16 / 9; /* Format paysage */
+    background-color: #eee;
 }
+.carousel-slide {
+    display: flex;
+    height: 100%;
+    transition: transform 0.5s ease-in-out;
+}
+.carousel-slide img {
+    width: 100%;
+    height: 100%;
+    flex-shrink: 0;
+    object-fit: cover; /* Ne déforme pas l'image, la recadre si besoin */
+}
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(255, 255, 255, 0.7);
+    border: none;
+    font-size: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.carousel-btn.prev { left: 15px; }
+.carousel-btn.next { right: 15px; }
+.carousel-dots {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+}
+.carousel-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+.carousel-dot.active { background-color: white; }
+
+
+/* --- MODAL --- */
+.modal-container {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 450px;
+    width: 90%;
+}
+.modal-content h3 { margin-top: 0; }
+#modal-body form label {
+    display: block;
+    text-align: left;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+#modal-body form input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 5px; /* Réduit */
+}
+#modal-body .input-error {
+    color: var(--theme-red);
+    font-size: 0.8rem;
+    text-align: left;
+    height: 1.2rem; /* Alloue de l'espace pour ne pas décaler la mise en page */
+    margin-bottom: 5px;
+}
+.form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+.modal-btn {
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+.modal-btn.confirm { background-color: var(--theme-red); color: white; }
+.modal-btn.confirm:hover { background-color: var(--theme-red-hover); }
+.modal-btn.cancel { background-color: #eee; color: #333; }
+.modal-btn.cancel:hover { background-color: #ddd; }
+
+
+/* --- PAGE ADMIN --- (Styles simplifiés pour la concision) */
+.admin-container { max-width: 1200px; margin: 40px auto; padding: 20px; }
+.admin-tabs { margin-bottom: 20px; border-bottom: 1px solid #ddd; }
+.admin-tab-btn {
+  background: transparent; color: #555; border: none;
+  border-bottom: 3px solid transparent; padding: 10px 15px;
+  cursor: pointer; font-weight: 700;
+}
+.admin-tab-btn.active-tab, .admin-tab-btn:hover { color: var(--theme-red); border-bottom-color: var(--theme-red); }
+.admin-tab-content { background: #fff; border-radius: 6px; padding: 25px; border: 1px solid #eee; }
+.admin-form-section { background-color: #f9f9f9; border: 1px solid #eee; padding: 20px; border-radius: 5px; margin-bottom: 25px; }
+.admin-tab-content table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+.admin-tab-content th, .admin-tab-content td { border: 1px solid #eee; padding: 12px; text-align: left; vertical-align: middle; }
+.admin-tab-content th { background-color: #f7f7f7; }
+.action-cell { display: flex; gap: 8px; }

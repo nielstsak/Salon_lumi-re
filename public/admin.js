@@ -1,378 +1,238 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const tabBtns = document.querySelectorAll('.admin-tab-btn');
-  const tabContents = document.querySelectorAll('.admin-tab-content');
 
-  // Show the "Calendrier" tab by default
-  document.getElementById('cal-tab').style.display = 'block';
+    // --- API & UTILITIES ---
+    const api = {
+        get: async (url) => fetch(url).then(handleResponse),
+        post: async (url, data) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handleResponse),
+        put: async (url, data) => fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handleResponse),
+        delete: async (url) => fetch(url, { method: 'DELETE' }).then(handleResponse),
+    };
 
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabContents.forEach(tc => tc.style.display = 'none');
-      const target = btn.getAttribute('data-tab');
-      document.getElementById(target).style.display = 'block';
+    async function handleResponse(response) {
+        const json = await response.json();
+        if (!response.ok) return Promise.reject(json);
+        return json;
+    }
+
+    // --- MODAL MANAGEMENT ---
+    const modalContainer = document.getElementById('modal-container');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const modalActions = document.getElementById('modal-actions');
+    let onConfirmCallback = null;
+
+    function showModal(title, message, type = 'info', onConfirm = null) {
+        modalTitle.textContent = title;
+        modalBody.innerHTML = `<p>${message}</p>`;
+        onConfirmCallback = onConfirm;
+        let buttons = '';
+        if (type === 'confirm') {
+            buttons = `<button id="modal-confirm-btn" class="modal-btn confirm">Confirmer</button><button id="modal-cancel-btn" class="modal-btn cancel">Annuler</button>`;
+        } else {
+            buttons = `<button id="modal-close-btn" class="modal-btn">Fermer</button>`;
+        }
+        modalActions.innerHTML = buttons;
+        modalContainer.style.display = 'flex';
+        
+        if (type === 'confirm') {
+            document.getElementById('modal-confirm-btn').addEventListener('click', () => {
+                if (onConfirmCallback) onConfirmCallback();
+                hideModal();
+            });
+            document.getElementById('modal-cancel-btn').addEventListener('click', hideModal);
+        } else {
+            document.getElementById('modal-close-btn').addEventListener('click', hideModal);
+        }
+    }
+    function hideModal() { modalContainer.style.display = 'none'; }
+
+    // --- TABS MANAGEMENT ---
+    const tabBtns = document.querySelectorAll('.admin-tab-btn');
+    const tabContents = document.querySelectorAll('.admin-tab-content');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset.tab;
+            if (!targetId) return;
+            tabContents.forEach(tc => tc.style.display = 'none');
+            tabBtns.forEach(b => b.classList.remove('active-tab'));
+            document.getElementById(targetId).style.display = 'block';
+            btn.classList.add('active-tab');
+        });
     });
-  });
+    if (tabBtns.length > 0) tabBtns[0].click();
 
-  /* =============== CAL TAB =============== */
-  const adminCalTitle      = document.getElementById('admin-cal-title');
-  const adminMonthCalendar = document.getElementById('admin-month-calendar');
-  const calAdminPrev       = document.querySelector('.cal-admin-prev');
-  const calAdminNext       = document.querySelector('.cal-admin-next');
-  const adminChosenDaySpan = document.getElementById('admin-chosen-day');
-  const adminDayTable      = document.getElementById('admin-day-appointments-table').querySelector('tbody');
-  const adminAddRdvBtn     = document.getElementById('admin-add-rdv-btn');
-  const adminAddPopup      = document.getElementById('admin-add-rdv-popup');
-  const adminAddForm       = document.getElementById('admin-add-rdv-form');
-  const adminCancelAdd     = document.getElementById('admin-cancel-add');
+    // ===============================================
+    // =============== CALENDRIER TAB ================
+    // ===============================================
+    const adminState = { monthOffset: 0, selectedDay: new Date().toISOString().split('T')[0] };
+    const adminCalTitle = document.getElementById('admin-cal-title');
+    const adminMonthCalendar = document.getElementById('admin-month-calendar');
+    const calAdminPrev = document.getElementById('cal-admin-prev');
+    const calAdminNext = document.getElementById('cal-admin-next');
+    const adminChosenDaySpan = document.getElementById('admin-chosen-day');
+    const adminDayTableBody = document.getElementById('admin-day-appointments-table').querySelector('tbody');
 
-  let calAdminMonthOffset = 0;
-  let selectedAdminDayStr = null;
+    async function loadAdminCalendar() {
+        const displayDate = new Date(new Date().getFullYear(), new Date().getMonth() + adminState.monthOffset, 1);
+        adminCalTitle.textContent = displayDate.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+        calAdminNext.disabled = adminState.monthOffset >= 2;
+        calAdminPrev.disabled = adminState.monthOffset <= -2;
 
-  function loadAdminCalendar() {
-    adminMonthCalendar.innerHTML = '';
+        const year = displayDate.getFullYear(), month = displayDate.getMonth();
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const dayList = Array.from({ length: lastDay }, (_, i) => `${year}-${String(month + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`);
+        
+        try {
+            const { dayCounts } = await api.post('/api/admin/month-appointments', { days: dayList });
+            adminMonthCalendar.innerHTML = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<div class="calendar-day-name">${d}</div>`).join('');
+            const offset = new Date(year, month, 1).getDay() === 0 ? 6 : new Date(year, month, 1).getDay() - 1;
+            for (let i = 0; i < offset; i++) adminMonthCalendar.insertAdjacentHTML('beforeend', '<div></div>');
+            
+            dayList.forEach(dayStr => {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day available';
+                if (dayStr === adminState.selectedDay) cell.classList.add('selected');
+                cell.textContent = new Date(dayStr + "T12:00:00").getDate();
+                if (dayCounts[dayStr] > 0) cell.innerHTML += `<span class="rdv-count-label">${dayCounts[dayStr]}</span>`;
+                cell.addEventListener('click', () => {
+                    adminState.selectedDay = dayStr;
+                    loadAdminDayAppointments();
+                    loadAdminCalendar(); // Re-render to update selection style
+                });
+                adminMonthCalendar.appendChild(cell);
+            });
+        } catch (error) { showModal('Erreur', 'Impossible de charger les données du calendrier.'); }
+    }
+    
+    async function loadAdminDayAppointments() {
+        adminChosenDaySpan.textContent = new Date(adminState.selectedDay + "T12:00:00").toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        adminDayTableBody.innerHTML = `<tr><td colspan="6">Chargement...</td></tr>`;
+        try {
+            const appointments = await api.get(`/api/admin/day-appointments?day=${adminState.selectedDay}`);
+            adminDayTableBody.innerHTML = appointments.length === 0
+                ? '<tr><td colspan="6">Aucun rendez-vous pour ce jour.</td></tr>'
+                : appointments.map(rdv => `<tr>
+                    <td>${rdv.id}</td><td>${rdv.title}</td>
+                    <td>${new Date(rdv.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>${new Date(rdv.end).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>${rdv.phone || ''}</td><td class="action-cell"><button class="delete-btn" data-id="${rdv.id}">Supprimer</button></td>
+                   </tr>`).join('');
+        } catch (error) { adminDayTableBody.innerHTML = '<tr><td colspan="6">Erreur de chargement des rendez-vous.</td></tr>'; }
+    }
 
-    const now = new Date();
-    let displayYear  = now.getFullYear();
-    let displayMonth = now.getMonth();
-    let totalMonth = displayMonth + calAdminMonthOffset;
-
-    while(totalMonth<0)  { totalMonth+=12; displayYear--; }
-    while(totalMonth>11) { totalMonth-=12; displayYear++; }
-
-    calAdminNext.disabled = (calAdminMonthOffset>=2);
-    calAdminPrev.disabled = (calAdminMonthOffset<=0);
-
-    const firstDayDate = new Date(displayYear, totalMonth, 1);
-    let monthName = firstDayDate.toLocaleString('fr-FR',{month:'long',year:'numeric'});
-    monthName = monthName.charAt(0).toUpperCase()+monthName.slice(1);
-    adminCalTitle.textContent = monthName;
-
-    const lastDay = new Date(displayYear, totalMonth+1,0).getDate();
-
-    // headings
-    const daysOfWeek = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-    const headingRow = document.createElement('div');
-    headingRow.classList.add('month-cal-row');
-    daysOfWeek.forEach(d=>{
-      const cell = document.createElement('div');
-      cell.classList.add('month-cal-cell','month-cal-header');
-      cell.textContent = d;
-      headingRow.appendChild(cell);
+    calAdminPrev.addEventListener('click', () => { adminState.monthOffset--; loadAdminCalendar(); });
+    calAdminNext.addEventListener('click', () => { adminState.monthOffset++; loadAdminCalendar(); });
+    adminDayTableBody.addEventListener('click', e => {
+        if (e.target.matches('.delete-btn')) {
+            showModal('Confirmation', "Supprimer ce rendez-vous ? L'action est irréversible.", 'confirm', async () => {
+                try { await api.delete(`/api/admin/appointments/${e.target.dataset.id}`); loadAdminDayAppointments(); loadAdminCalendar(); } 
+                catch (err) { showModal('Erreur', err.message || 'La suppression a échoué.'); }
+            });
+        }
     });
-    adminMonthCalendar.appendChild(headingRow);
 
-    let offsetStart = new Date(displayYear, totalMonth, 1).getDay();
-    if(offsetStart===0) offsetStart=7;
-    const row1 = document.createElement('div');
-    row1.classList.add('month-cal-row');
-
-    for(let i=1; i<offsetStart; i++){
-      const cell = document.createElement('div');
-      cell.classList.add('month-cal-cell','month-cal-empty');
-      row1.appendChild(cell);
+    // --- SERVICES TAB ---
+    const servicesTableBody = document.querySelector('#services-table tbody'), serviceForm = document.getElementById('service-form');
+    async function loadServices() {
+        try {
+            servicesTableBody.innerHTML = (await api.get('/api/admin/services')).map(s => `<tr>
+                <td>${s.title}</td><td>${s.duration} min</td><td>${s.price.toFixed(2)} €</td>
+                <td class="action-cell"><button class="edit-btn" data-id="${s.id}">Modifier</button><button class="delete-btn" data-id="${s.id}">Supprimer</button></td>
+            </tr>`).join('');
+        } catch { showModal('Erreur', 'Impossible de charger les services.'); }
     }
-    let colCount = offsetStart-1;
-    let currentRow = row1;
+    servicesTableBody.addEventListener('click', async e => {
+        const id = e.target.dataset.id;
+        if (e.target.matches('.edit-btn')) {
+            const service = (await api.get('/api/admin/services')).find(s => s.id == id);
+            if (!service) return;
+            document.getElementById('service-form-title').textContent = "Modifier la prestation";
+            serviceForm.elements.id.value = service.id;
+            serviceForm.elements.title.value = service.title;
+            serviceForm.elements.duration.value = service.duration;
+            serviceForm.elements.price.value = service.price;
+        } else if (e.target.matches('.delete-btn')) {
+            showModal('Confirmation', "Supprimer cette prestation ?", 'confirm', async () => {
+                try { await api.delete(`/api/admin/services/${id}`); loadServices(); } 
+                catch (err) { showModal('Erreur', err.message || 'Suppression échouée.'); }
+            });
+        }
+    });
+    serviceForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const id = data.id;
+        const method = id ? 'put' : 'post';
+        const url = id ? `/api/admin/services/${id}` : '/api/admin/services';
+        try { await api[method](url, data); serviceForm.reset(); document.getElementById('service-form-title').textContent = "Ajouter une prestation"; loadServices(); } 
+        catch (err) { showModal('Erreur', err.message || 'Enregistrement échoué.'); }
+    });
+    document.getElementById('service-form-cancel').addEventListener('click', () => {
+        serviceForm.reset();
+        document.getElementById('service-form-title').textContent = "Ajouter une prestation";
+        serviceForm.elements.id.value = '';
+    });
 
-    // Create day list
-    const dayList=[];
-    for(let d=1; d<=lastDay; d++){
-      const dd = d.toString().padStart(2,'0');
-      const mm = (totalMonth+1).toString().padStart(2,'0');
-      const yyyy=displayYear;
-      dayList.push(`${yyyy}-${mm}-${dd}`);
+
+    // --- HOURS TAB ---
+    const hoursTableBody = document.querySelector('#hours-table tbody');
+    async function loadHours() {
+        try {
+            const hours = await api.get('/api/admin/hours');
+            const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+            hoursTableBody.innerHTML = Array.from({length: 7}, (_, i) => i + 1).map(d => {
+                const rowData = hours.find(h => h.day_of_week === d) || {};
+                return `<tr><td>${jours[d % 7]}</td>
+                           <td><input type="time" class="hour-start" value="${rowData.start || ''}"/></td>
+                           <td><input type="time" class="hour-end" value="${rowData.end || ''}"/></td>
+                           <td><button class="modal-btn confirm" data-dow="${d}">Enregistrer</button></td></tr>`;
+            }).join('');
+        } catch { showModal('Erreur', 'Impossible de charger les horaires.'); }
     }
-
-    // fetch dayCounts
-    fetch('/api/admin/month-appointments',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ days: dayList })
-    })
-    .then(r=>r.json())
-    .then(resp=>{
-      const dayCounts = resp.dayCounts || {};
-
-      for(let d=1; d<=lastDay; d++){
-        if(colCount>=7){
-          adminMonthCalendar.appendChild(currentRow);
-          currentRow=document.createElement('div');
-          currentRow.classList.add('month-cal-row');
-          colCount=0;
+    hoursTableBody.addEventListener('click', async e => {
+        if(e.target.matches('button')){
+            const tr = e.target.closest('tr');
+            try { await api.post('/api/admin/hours', { day_of_week: e.target.dataset.dow, start: tr.querySelector('.hour-start').value, end: tr.querySelector('.hour-end').value }); showModal('Succès', 'Horaire sauvegardé.'); } 
+            catch (err) { showModal('Erreur', err.message || 'Sauvegarde échouée.'); }
         }
-        const cell = document.createElement('div');
-        cell.classList.add('month-cal-cell','month-cal-day','admin-cal-day');
-        cell.style.height='70px'; // bigger cell
+    });
 
-        // day number
-        const dayNumber = document.createElement('div');
-        dayNumber.textContent=d;
-        cell.appendChild(dayNumber);
-
-        // show dayCounts in new line if any
-        const dd = d.toString().padStart(2,'0');
-        const mm = (totalMonth+1).toString().padStart(2,'0');
-        const yyyy=displayYear;
-        const dayStr = `${yyyy}-${mm}-${dd}`;
-        const count = dayCounts[dayStr]||0;
-        if(count>0){
-          const rdvLabel = document.createElement('div');
-          rdvLabel.style.fontSize='14px';
-          rdvLabel.style.marginTop='5px';
-          rdvLabel.textContent = `${count} RDV`;
-          cell.appendChild(rdvLabel);
-        }
-
-        // on click
-        cell.addEventListener('click',()=>{
-          selectedAdminDayStr=dayStr;
-          adminChosenDaySpan.textContent=new Date(dayStr+"T00:00:00")
-            .toLocaleDateString('fr-FR',{ weekday:'long', day:'numeric', month:'long', year:'numeric'});
-          loadAdminDayAppointments(dayStr);
-        });
-        currentRow.appendChild(cell);
-        colCount++;
-      }
-
-      if(colCount>0){
-        while(colCount<7){
-          const cell=document.createElement('div');
-          cell.classList.add('month-cal-cell','month-cal-empty');
-          currentRow.appendChild(cell);
-          colCount++;
-        }
-        adminMonthCalendar.appendChild(currentRow);
-      } else {
-        adminMonthCalendar.appendChild(currentRow);
-      }
-    })
-    .catch(err=>console.error(err));
-  }
-
-  calAdminPrev.addEventListener('click',()=>{
-    if(calAdminMonthOffset>0){
-      calAdminMonthOffset--;
-      loadAdminCalendar();
+    // --- BLOCKS TAB ---
+    const blocksTableBody = document.querySelector('#blocks-table tbody');
+    async function loadBlocks() {
+        try {
+            blocksTableBody.innerHTML = (await api.get('/api/admin/blocks')).map(b => `<tr>
+                <td>${b.id}</td><td>${new Date(b.start).toLocaleString('fr-FR')}</td><td>${new Date(b.end).toLocaleString('fr-FR')}</td>
+                <td>${b.type}</td><td>${b.reason || ''}</td><td><button class="delete-btn" data-id="${b.id}">Supprimer</button></td>
+            </tr>`).join('');
+        } catch { showModal('Erreur', 'Impossible de charger les blocages.'); }
     }
-  });
-  calAdminNext.addEventListener('click',()=>{
-    if(calAdminMonthOffset<2){
-      calAdminMonthOffset++;
-      loadAdminCalendar();
-    }
-  });
-
-  function loadAdminDayAppointments(dayStr){
-    fetch(`/api/admin/day-appointments?day=${dayStr}`)
-      .then(r=>r.json())
-      .then(resp=>{
-        const tBody=adminDayTable;
-        tBody.innerHTML='';
-        if(!resp||!Array.isArray(resp)||resp.length===0){
-          tBody.innerHTML='<tr><td colspan="6">Aucun rendez-vous pour ce jour</td></tr>';
-          return;
+    document.getElementById('block-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        try { await api.post('/api/admin/block', Object.fromEntries(new FormData(e.target))); showModal('Succès', 'Blocage ajouté.'); e.target.reset(); loadBlocks(); }
+        catch (err) { showModal('Erreur', err.message || 'Ajout échoué.'); }
+    });
+    document.getElementById('vacation-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        try { await api.post('/api/admin/vacation', Object.fromEntries(new FormData(e.target))); showModal('Succès', 'Vacances ajoutées.'); e.target.reset(); loadBlocks(); }
+        catch (err) { showModal('Erreur', err.message || 'Ajout échoué.'); }
+    });
+    blocksTableBody.addEventListener('click', e => {
+        if (e.target.matches('.delete-btn')) {
+            showModal('Confirmation', "Supprimer ce blocage ?", 'confirm', async () => {
+                try { await api.delete(`/api/admin/blocks/${e.target.dataset.id}`); loadBlocks(); }
+                catch (err) { showModal('Erreur', err.message || 'Suppression échouée.'); }
+            });
         }
-        resp.forEach(rdv=>{
-          const tr=document.createElement('tr');
-          tr.innerHTML=`
-            <td>${rdv.id}</td>
-            <td>${rdv.title}</td>
-            <td>${rdv.start}</td>
-            <td>${rdv.end}</td>
-            <td>${rdv.phone||''}</td>
-            <td>
-              <button class="delete-rdv-btn" data-id="${rdv.id}">Supprimer</button>
-            </td>
-          `;
-          tBody.appendChild(tr);
-        });
-        document.querySelectorAll('.delete-rdv-btn').forEach(btn=>{
-          btn.addEventListener('click',()=>{
-            const id=btn.getAttribute('data-id');
-            if(!confirm("Supprimer ce RDV ?")) return;
-            fetch(`/api/admin/appointments/${id}`,{
-              method:'DELETE'
-            })
-            .then(r=>r.json())
-            .then(r2=>{
-              if(r2.error) alert(r2.error);
-              else loadAdminDayAppointments(dayStr);
-            })
-            .catch(err=>console.error(err));
-          });
-        });
-      })
-      .catch(err=>console.error(err));
-  }
+    });
 
-  // Add RDV from admin
-  adminAddRdvBtn.addEventListener('click',()=>{
-    if(!selectedAdminDayStr){
-      alert("Sélectionnez d'abord un jour sur le calendrier.");
-      return;
-    }
-    adminAddPopup.style.display='flex';
-  });
-  adminCancelAdd.addEventListener('click',()=>{
-    adminAddPopup.style.display='none';
-  });
-  adminAddForm.addEventListener('submit',(e)=>{
-    e.preventDefault();
-    const formData=new FormData(e.target);
-    fetch('/api/appointments',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        title: formData.get('title'),
-        start: formData.get('start'),
-        end:   formData.get('end'),
-        phone: formData.get('phone')
-      })
-    })
-    .then(r=>r.json())
-    .then(resp=>{
-      if(resp.error){
-        alert("Erreur: "+resp.error);
-      } else {
-        alert("RDV créé avec succès !");
-        adminAddPopup.style.display='none';
-        if(selectedAdminDayStr){
-          loadAdminDayAppointments(selectedAdminDayStr);
-        }
+    // --- INITIALIZATION ---
+    function init() {
         loadAdminCalendar();
-      }
-    })
-    .catch(err=>console.error(err));
-  });
-
-  // ============ BLOCKS / VACATIONS =============
-  function loadBlocks(){
-    fetch('/api/admin/blocks')
-      .then(r=>r.json())
-      .then(rows=>{
-        const tbody=document.querySelector('#blocks-table tbody');
-        tbody.innerHTML='';
-        rows.forEach(b=>{
-          const tr=document.createElement('tr');
-          tr.innerHTML=`
-            <td>${b.id}</td>
-            <td>${b.start}</td>
-            <td>${b.end}</td>
-            <td>${b.type}</td>
-            <td>${b.reason||''}</td>
-            <td>
-              <button class="delete-block-btn" data-id="${b.id}">Supprimer</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-        document.querySelectorAll('.delete-block-btn').forEach(btn=>{
-          btn.addEventListener('click',()=>{
-            const id=btn.getAttribute('data-id');
-            if(!confirm("Supprimer ce blocage ?")) return;
-            fetch(`/api/admin/blocks/${id}`,{
-              method:'DELETE'
-            })
-            .then(r=>r.json())
-            .then(resp=>{
-              if(resp.error) alert(resp.error);
-              else loadBlocks();
-            })
-            .catch(err=>console.error(err));
-          });
-        });
-      })
-      .catch(err=>console.error(err));
-  }
-  document.getElementById('block-form').addEventListener('submit',(e)=>{
-    e.preventDefault();
-    const formData=new FormData(e.target);
-    fetch('/api/admin/block',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        start: formData.get('start'),
-        end:   formData.get('end'),
-        reason: formData.get('reason')||''
-      })
-    })
-    .then(r=>r.json())
-    .then(resp=>{
-      if(resp.error) alert(resp.error);
-      else {
-        alert("Blocage ajouté");
+        loadAdminDayAppointments();
+        loadServices();
+        loadHours();
         loadBlocks();
-      }
-    })
-    .catch(err=>console.error(err));
-  });
-  document.getElementById('vacation-form').addEventListener('submit',(e)=>{
-    e.preventDefault();
-    const formData=new FormData(e.target);
-    fetch('/api/admin/vacation',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        start: formData.get('start'),
-        end:   formData.get('end'),
-        reason: formData.get('reason')||'Vacances'
-      })
-    })
-    .then(r=>r.json())
-    .then(resp=>{
-      if(resp.error) alert(resp.error);
-      else {
-        alert("Vacances ajoutées");
-        loadBlocks();
-      }
-    })
-    .catch(err=>console.error(err));
-  });
-
-  // ============ HOURS =============
-  function loadHours(){
-    fetch('/api/admin/hours')
-      .then(r=>r.json())
-      .then(rows=>{
-        const tbody=document.querySelector('#hours-table tbody');
-        tbody.innerHTML='';
-        const jours=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
-        for(let d=1; d<=7; d++){
-          const row = rows.find(rh=> +rh.day_of_week===d) || {};
-          const tr=document.createElement('tr');
-          tr.innerHTML=`
-            <td>${jours[d%7]}</td>
-            <td><input type="time" class="hour-start" value="${row.start||''}"/></td>
-            <td><input type="time" class="hour-end" value="${row.end||''}"/></td>
-            <td><button class="save-hour-btn" data-dow="${d}">Enregistrer</button></td>
-          `;
-          tbody.appendChild(tr);
-        }
-        document.querySelectorAll('.save-hour-btn').forEach(btn=>{
-          btn.addEventListener('click',()=>{
-            const dow=btn.getAttribute('data-dow');
-            const tr=btn.parentElement.parentElement;
-            const start=tr.querySelector('.hour-start').value;
-            const end=tr.querySelector('.hour-end').value;
-            fetch('/api/admin/hours',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({ day_of_week:dow, start, end })
-            })
-            .then(r=>r.json())
-            .then(resp=>{
-              if(resp.error) alert(resp.error);
-              else alert("Horaire sauvegardé");
-            })
-            .catch(err=>console.error(err));
-          });
-        });
-      })
-      .catch(err=>console.error(err));
-  }
-
-  // init
-  loadAdminCalendar();
-  loadBlocks();
-  loadHours();
+    }
+    init();
 });
