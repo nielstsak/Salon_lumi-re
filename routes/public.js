@@ -1,120 +1,189 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db/database'); // Importe la connexion et les fonctions de la BDD
-
-// --- ROUTES PUBLIQUES ---
-// Préfixe de route dans server.js : /api
+const db = require('../db/database');
+const he = require('he'); // Importation de la bibliothèque pour l'encodage des entités HTML
 
 /**
- * GET /services
- * Fournit la liste des services disponibles depuis le cache local de l'application.
+ * Calcule les créneaux horaires disponibles pour une journée et un service donnés.
+ * @param {string} dateStr - La date cible au format YYYY-MM-DD.
+ * @param {object} service - L'objet service contenant au minimum { id, duration }.
+ * @returns {Promise<Array<{start: string, end: string}>>} Une promesse qui se résout avec un tableau de créneaux disponibles.
  */
+async function getAvailableSlotsForDay(dateStr, service) {
+    const dayDate = new Date(dateStr + "T00:00:00.000Z"); // Utilise UTC pour éviter les décalages horaires
+    const dayOfWeek = dayDate.getUTCDay(); // Dimanche = 0, Lundi = 1, ...
+    const sqliteDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek; // SQLite utilise Lundi (1) à Dimanche (7)
+
+    const workingHours = await db.queryAsync("SELECT start, end FROM working_hours WHERE day_of_week = ?", [sqliteDayOfWeek]);
+    if (workingHours.length === 0 || !workingHours[0].start || !workingHours[0].end) {
+        return []; // Pas d'horaires de travail définis pour ce jour
+    }
+
+    // Création des heures de début et de fin de la journée de travail en UTC
+    const [startHour, startMinute] = workingHours[0].start.split(':').map(Number);
+    const [endHour, endMinute] = workingHours[0].end.split(':').map(Number);
+    const workDayStart = new Date(Date.UTC(dayDate.getUTCFullYear(), dayDate.getUTCMonth(), dayDate.getUTCDate(), startHour, startMinute));
+    const workDayEnd = new Date(Date.UTC(dayDate.getUTCFullYear(), dayDate.getUTCMonth(), dayDate.getUTCDate(), endHour, endMinute));
+
+    const dayStartISO = workDayStart.toISOString();
+    const dayEndISO = workDayEnd.toISOString();
+    
+    // Récupération de tous les rendez-vous et blocages pour la journée
+    const appointments = await db.queryAsync("SELECT start, end FROM appointments WHERE start >= ? AND start < ?", [dayStartISO, dayEndISO]);
+    const blocks = await db.queryAsync("SELECT start, end FROM blocked_slots WHERE (start < ? AND end > ?)", [dayEndISO, dayStartISO]);
+    
+    // Concaténation de tous les créneaux occupés
+    const allBookedSlots = [...appointments, ...blocks].map(slot => ({
+        start: new Date(slot.start),
+        end: new Date(slot.end)
+    }));
+    
+    const availableSlots = [];
+    let currentTime = new Date(workDayStart);
+    const now = new Date();
+    const slotIncrement = 15; // "Pas" du calendrier pour vérifier la disponibilité (en minutes)
+
+    while (currentTime < workDayEnd) {
+        const slotStart = new Date(currentTime);
+        const slotEnd = new Date(slotStart.getTime() + service.duration * 60000);
+
+        if (slotEnd > workDayEnd) {
+            break; // Le créneau dépasse la fin de la journée de travail
+        }
+        
+        // Vérifie si le créneau potentiel est déjà dans le passé
+        if (slotStart < now) {
+            currentTime.setUTCMinutes(currentTime.getUTCMinutes() + slotIncrement);
+            continue;
+        }
+
+        // Vérifie si le créneau potentiel chevauche un créneau déjà réservé
+        const isOverlapping = allBookedSlots.some(
+            bookedSlot => slotStart < bookedSlot.end && slotEnd > bookedSlot.start
+        );
+        
+        if (!isOverlapping) {
+            availableSlots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
+        }
+        
+        currentTime.setUTCMinutes(currentTime.getUTCMinutes() + slotIncrement);
+    }
+    
+    return availableSlots;
+}
+
+
+// --- ROUTES PUBLIQUES (/api) ---
+
+// Récupère la liste de tous les services depuis le cache
 router.get('/services', (req, res) => {
-  // 'req.app.locals' permet d'accéder aux variables locales de l'instance Express
-  res.json(req.app.locals.services);
+  res.json(req.app.locals.services || []);
 });
 
-/**
- * GET /timeslots/day
- * Calcule et retourne les créneaux horaires disponibles pour un jour et un service donnés.
- */
+// Récupère les créneaux disponibles pour un jour donné
 router.get('/timeslots/day', async (req, res) => {
   const { date, serviceId } = req.query;
   if (!date || !serviceId) {
-    return res.status(400).json({ message: "Paramètres 'date' et 'serviceId' manquants." });
+    return res.status(400).json({ message: "Les paramètres 'date' et 'serviceId' sont requis." });
   }
 
   const service = req.app.locals.services.find(s => s.id == serviceId);
   if (!service) {
-    return res.status(404).json({ message: "Service inconnu." });
+    return res.status(404).json({ message: "Le service demandé n'existe pas." });
   }
 
   try {
-    const dayDate = new Date(date + "T00:00:00.000Z");
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    if (dayDate < now) return res.json({ slots: [] });
-
-    // 0 (Dimanche) devient 7 pour correspondre à la logique de la BDD
-    const dow = dayDate.getUTCDay() === 0 ? 7 : dayDate.getUTCDay();
-    if ([6, 7].includes(dow)) return res.json({ slots: [] }); // Samedi, Dimanche
-
-    const wh = await db.queryAsync("SELECT start, end FROM working_hours WHERE day_of_week = ?", [dow]);
-    if (wh.length === 0 || !wh[0].start || !wh[0].end) {
-        return res.json({ slots: [] });
-    }
-    
-    const [sh, sm] = wh[0].start.split(':').map(Number);
-    const [eh, em] = wh[0].end.split(':').map(Number);
-    const startTime = new Date(Date.UTC(dayDate.getUTCFullYear(), dayDate.getUTCMonth(), dayDate.getUTCDate(), sh, sm));
-    const endTime = new Date(Date.UTC(dayDate.getUTCFullYear(), dayDate.getUTCMonth(), dayDate.getUTCDate(), eh, em));
-
-    const dayStartISO = startTime.toISOString();
-    const dayEndISO = endTime.toISOString();
-    
-    const dayAppointments = await db.queryAsync("SELECT start, end FROM appointments WHERE start >= ? AND start < ?", [dayStartISO, dayEndISO]);
-    const dayBlocks = await db.queryAsync("SELECT start, end FROM blocked_slots WHERE (start < ? AND end > ?)", [dayEndISO, dayStartISO]);
-    const allBookedSlots = [...dayAppointments, ...dayBlocks].map(s => ({ start: new Date(s.start), end: new Date(s.end) }));
-    
-    const availableSlots = [];
-    let currentTime = new Date(startTime);
-    
-    while (currentTime < endTime) {
-        const slotStart = new Date(currentTime);
-        const slotEnd = new Date(slotStart.getTime() + service.duration * 60000);
-        if (slotEnd > endTime) break;
-        const isOverlapping = allBookedSlots.some(booked => slotStart < booked.end && slotEnd > booked.start);
-        
-        // N'affiche que les créneaux futurs
-        if (!isOverlapping && slotStart > new Date()) {
-            availableSlots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
-        }
-        currentTime.setMinutes(currentTime.getMinutes() + 30);
-    }
-    
-    res.json({ slots: availableSlots });
+    const slots = await getAvailableSlotsForDay(date, service);
+    res.json({ slots });
   } catch (e) {
-    console.error("Erreur calcul des créneaux:", e);
-    res.status(500).json({ message: "Erreur interne du serveur." });
+    console.error("Erreur lors du calcul des créneaux:", e);
+    res.status(500).json({ message: "Erreur interne du serveur lors de la recherche de créneaux." });
   }
 });
 
-
-/**
- * POST /appointments
- * Crée un nouveau rendez-vous après vérification des disponibilités.
- */
-router.post('/appointments', async (req, res) => {
-    const { title, start, end, phone } = req.body;
-    if (!title || !start || !end || !phone) {
-        return res.status(400).json({ message: "Veuillez remplir tous les champs." });
+// Récupère les 5 prochains créneaux disponibles
+router.get('/timeslots/next-five', async (req, res) => {
+    const { serviceId } = req.query;
+    if (!serviceId) {
+        return res.status(400).json({ message: "Le paramètre 'serviceId' est requis." });
     }
+    const service = req.app.locals.services.find(s => s.id == serviceId);
+    if (!service) {
+        return res.status(404).json({ message: "Service inconnu." });
+    }
+
     try {
-        const sDate = new Date(start);
-        const eDate = new Date(end);
-        if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate <= sDate) {
-            return res.status(400).json({ message: "Format de date ou de créneau invalide." });
+        let checkDate = new Date();
+        const nextSlots = [];
+        const searchLimitInDays = 60;
+
+        for (let i = 0; i < searchLimitInDays && nextSlots.length < 5; i++) {
+            const dateStr = checkDate.toISOString().split('T')[0];
+            const slotsForDay = await getAvailableSlotsForDay(dateStr, service);
+            
+            for (const slot of slotsForDay) {
+                if (nextSlots.length < 5) {
+                    nextSlots.push(slot);
+                } else {
+                    break;
+                }
+            }
+            checkDate.setDate(checkDate.getDate() + 1);
+        }
+        res.json({ slots: nextSlots });
+    } catch (e) {
+        console.error("Erreur lors de la recherche des prochains créneaux:", e);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// Crée un nouveau rendez-vous
+router.post('/appointments', async (req, res) => {
+    const { title, start, end, phone, serviceId, serviceName } = req.body;
+    if (!title || !start || !end || !phone || !serviceId || !serviceName) {
+        return res.status(400).json({ message: "Tous les champs sont requis pour la prise de rendez-vous." });
+    }
+
+    await db.beginTransaction();
+    try {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate) {
+            await db.rollback();
+            return res.status(400).json({ message: "Le format de date ou de créneau est invalide." });
         }
 
+        // Verrouillage de la table en vérifiant les conflits à l'intérieur de la transaction
         const conflicts = await db.queryAsync("SELECT id FROM appointments WHERE (start < ? AND end > ?)", [end, start]);
         if (conflicts.length > 0) {
-            return res.status(409).json({ message: "Désolé, ce créneau n'est plus disponible." });
+            await db.rollback();
+            return res.status(409).json({ message: "Désolé, ce créneau vient d'être réservé. Veuillez en choisir un autre." });
         }
 
         const blocks = await db.queryAsync("SELECT id FROM blocked_slots WHERE (start < ? AND end > ?)", [end, start]);
         if (blocks.length > 0) {
-            return res.status(409).json({ message: "Ce créneau est indisponible." });
+            await db.rollback();
+            return res.status(409).json({ message: "Ce créneau est indisponible pour des raisons internes. Veuillez en choisir un autre." });
         }
-
-        const result = await db.runAsync("INSERT INTO appointments (title, start, end, phone) VALUES (?, ?, ?, ?)", [title, start, end, phone]);
-        res.status(201).json({ success: true, id: result.lastID });
+        
+        // Nettoyage de l'entrée utilisateur pour prévenir les failles XSS
+        const sanitizedName = he.encode(title.trim());
+        const fullTitle = `${serviceName} - ${sanitizedName}`;
+        
+        const result = await db.runAsync(
+            "INSERT INTO appointments (title, start, end, phone, service_id) VALUES (?, ?, ?, ?, ?)",
+            [fullTitle, start, end, phone, serviceId]
+        );
+        
+        await db.commit();
+        res.status(201).json({ success: true, id: result.lastID, message: "Rendez-vous confirmé avec succès." });
 
     } catch (e) {
-        console.error("Server Error (Create Appointment):", e);
-        res.status(500).json({ message: "Une erreur interne est survenue." });
+        await db.rollback();
+        console.error("Erreur serveur lors de la création du rendez-vous:", e);
+        res.status(500).json({ message: "Une erreur interne est survenue lors de la création du rendez-vous." });
     }
 });
-
 
 module.exports = router;

@@ -5,6 +5,27 @@
   <title>Espace Administrateur</title>
   <link rel="stylesheet" href="styles.css"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Librairies externes (Correction des URLs) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <style>
+    /* Styles pour le tableau de bord et le calendrier */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .kpi-card { background: #fff; border: 1px solid #eee; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .kpi-value { font-size: 2.5rem; font-weight: 700; color: var(--theme-red); min-height: 48px; }
+    .kpi-label { font-size: 1rem; color: #666; }
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; }
+    .chart-container { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #eee; min-height: 350px; }
+    #calendar-container { min-height: 650px; }
+    .fc .fc-toolbar-title { font-size: 1.5em !important; }
+    .fc-event { font-size: 0.85em; }
+    .fc-daygrid-event { white-space: normal !important; }
+    .planning-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+  </style>
 </head>
 <body>
 <div class="admin-container">
@@ -12,35 +33,49 @@
   <p class="logout-link"><a href="/logout">Se déconnecter</a></p>
 
   <div class="admin-tabs">
-    <button class="admin-tab-btn" data-tab="cal-tab">Calendrier</button>
+    <button class="admin-tab-btn" data-tab="dashboard-tab">Dashboard</button>
+    <button class="admin-tab-btn" data-tab="planning-tab">Planning</button>
     <button class="admin-tab-btn" data-tab="services-tab">Services</button>
     <button class="admin-tab-btn" data-tab="hours-tab">Horaires</button>
     <button class="admin-tab-btn" data-tab="blocks-tab">Blocages</button>
   </div>
 
-  <!-- Contenu Onglet Calendrier -->
-  <div class="admin-tab-content" id="cal-tab" style="display:none;">
-    <h2>Calendrier des Rendez-vous</h2>
-    <div class="admin-cal-wrapper">
-      <button class="admin-cal-btn" id="cal-admin-prev" aria-label="Mois précédent">←</button>
-      <h4 id="admin-cal-title"></h4>
-      <button class="admin-cal-btn" id="cal-admin-next" aria-label="Mois suivant">→</button>
+  <!-- Contenu Onglet Dashboard -->
+  <div class="admin-tab-content" id="dashboard-tab">
+    <h2>Tableau de Bord</h2>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div id="kpi-daily-appointments" class="kpi-value">...</div>
+            <div class="kpi-label">Rendez-vous aujourd'hui</div>
+        </div>
+        <div class="kpi-card">
+            <div id="kpi-daily-revenue" class="kpi-value">...</div>
+            <div class="kpi-label">Chiffre d'Affaires estimé (jour)</div>
+        </div>
     </div>
-    <div id="admin-month-calendar" class="calendar-grid"></div>
-    <div class="day-details">
-      <h3>Liste des RDV du <span id="admin-chosen-day"></span></h3>
-    </div>
-    <div class="table-container">
-        <table id="admin-day-appointments-table">
-          <thead>
-            <tr><th>ID</th><th>Client</th><th>Début</th><th>Fin</th><th>Téléphone</th><th>Action</th></tr>
-          </thead>
-          <tbody><!-- Rempli par JS --></tbody>
-        </table>
+    <h3>Analyse sur 7 jours</h3>
+    <div class="charts-grid">
+        <div class="chart-container">
+            <h4>Rendez-vous par jour</h4>
+            <canvas id="daily-appointments-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h4>Répartition des services</h4>
+            <canvas id="service-distribution-chart"></canvas>
+        </div>
     </div>
   </div>
 
-  <!-- Contenu Onglet Services -->
+  <!-- Contenu Onglet Planning -->
+  <div class="admin-tab-content" id="planning-tab" style="display:none;">
+    <div class="planning-header">
+        <h2>Planning</h2>
+        <button id="export-pdf-btn" class="modal-btn confirm">Exporter en PDF</button>
+    </div>
+    <div id="calendar-container"></div>
+  </div>
+
+  <!-- Contenu Onglet Services (inchangé) -->
   <div class="admin-tab-content" id="services-tab" style="display:none;">
     <h2>Gérer les Prestations</h2>
     <div class="admin-form-section">
@@ -72,7 +107,7 @@
     </div>
   </div>
 
-  <!-- Contenu Onglet Horaires -->
+  <!-- Contenu Onglet Horaires (inchangé) -->
   <div class="admin-tab-content" id="hours-tab" style="display:none;">
     <h2>Horaires d'ouverture</h2>
     <p>Définissez pour chaque jour les horaires (HH:MM). Laissez les deux champs vides pour fermer le jour.</p>
@@ -86,7 +121,7 @@
     </div>
   </div>
 
-  <!-- Contenu Onglet Blocages -->
+  <!-- Contenu Onglet Blocages (inchangé) -->
   <div class="admin-tab-content" id="blocks-tab" style="display:none;">
     <h2>Blocages & Vacances</h2>
     <form id="block-form" class="admin-form-section">

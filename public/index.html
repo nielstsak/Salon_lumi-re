@@ -39,7 +39,7 @@
   <nav>
     <ul>
       <li><a href="#artisan-barber">Artisan barbier</a></li>
-      <li><a href="#tarifs">Nos Tarifs</a></li>
+      <li><a href="#nos-services">Nos Services</a></li>
       <li><a href="#prendre-rdv">Rendez-vous</a></li>
       <li><a href="#expo">Exposition</a></li>
       <li><a href="/admin">Admin</a></li>
@@ -64,36 +64,74 @@
       </div>
     </section>
 
-    <section id="tarifs">
-      <h2>Nos Tarifs <span>💈</span></h2>
-      <div id="tarifs-container"><p>Chargement des tarifs...</p></div>
+    <section id="nos-services">
+      <h2>Nos Services <span>💈</span></h2>
+      <div id="services-container">
+          <!-- Les cartes de service seront injectées ici par le script -->
+      </div>
     </section>
 
     <section id="prendre-rdv">
       <h2>Prendre Rendez-vous <span>📅</span></h2>
       <div id="booking-container">
-        <div id="booking-services">
-            <h3>1. Choisissez une prestation</h3>
-            <div id="service-list-container">
-                <!-- Les services seront injectés ici -->
+        
+        <div id="progress-bar">
+            <div class="progress-step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">Service</div>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">Date & Heure</div>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">Informations</div>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-label">Confirmation</div>
             </div>
         </div>
-        <div id="booking-main" class="hidden">
-            <div id="booking-calendar-view">
-                <h3>2. Choisissez une date et un horaire</h3>
-                <div class="booking-calendar-header">
-                    <button id="cal-prev-month" aria-label="Mois précédent">←</button>
-                    <h4 id="cal-month-year"></h4>
-                    <button id="cal-next-month" aria-label="Mois suivant">→</button>
-                </div>
-                <div id="cal-grid" class="calendar-grid">
-                    <!-- La grille du calendrier sera injectée ici -->
-                </div>
+
+        <div id="booking-services">
+            <h3 class="step-title" data-step-title="1">Choisissez une prestation</h3>
+            <div id="service-list-container">
+                <!-- Les services pour la réservation seront injectés ici -->
             </div>
-            <div id="booking-slots-view">
-                <h4>Horaires pour le <span id="slots-selected-date"></span></h4>
-                <div id="slots-container">
-                    <p class="slots-placeholder">Sélectionnez un jour pour voir les créneaux.</p>
+        </div>
+
+        <div id="booking-main" class="hidden">
+             <div class="booking-header">
+                <button id="back-to-services-btn" class="back-btn">← Changer de service</button>
+                <h3 class="step-title" data-step-title="2">Choisissez une date et un horaire</h3>
+            </div>
+
+            <div id="next-five-slots-container" class="hidden">
+                <h4>Prochains créneaux disponibles :</h4>
+                <div id="next-five-slots-list"></div>
+            </div>
+            
+            <div id="booking-views-container">
+                <div id="booking-calendar-view">
+                    <div class="booking-calendar-header">
+                        <button id="cal-prev-month" aria-label="Mois précédent">←</button>
+                        <h4 id="cal-month-year"></h4>
+                        <button id="cal-next-month" aria-label="Mois suivant">→</button>
+                    </div>
+                    <div id="cal-grid" class="calendar-grid"></div>
+                    <div id="calendar-legend">
+                        <div class="legend-item"><span class="legend-color-box selected"></span> Jour sélectionné</div>
+                        <div class="legend-item"><span class="legend-color-box available"></span> Jour disponible</div>
+                        <div class="legend-item"><span class="legend-color-box inactive"></span> Jour indisponible</div>
+                    </div>
+                </div>
+                <div id="booking-slots-view" class="hidden">
+                    <div class="booking-header">
+                         <button id="back-to-calendar-btn" class="back-btn">← Retour au calendrier</button>
+                    </div>
+                    <h4>Horaires pour le <span id="slots-selected-date"></span></h4>
+                    <div id="slots-container"></div>
                 </div>
             </div>
         </div>
@@ -121,20 +159,37 @@
     </section>
   </main>
 
-  <footer>
-    <div class="footer-content">
-      <div class="footer-col">
-        <p><strong>EURL : LES FAVORIS</strong></p>
-        <p>Enseigne : Salon Lumière</p>
-        <p>RCS Lyon : 507 604 288</p>
-        <p>N° TVA : FR79507604288</p>
-      </div>
-      <div class="footer-col">
-        <h3>Horaires & Contact</h3>
-        <p>Du lundi au vendredi : 11h - 19h</p>
-        <p><a href="tel:+33478005164">Tél: 04 78 00 51 64</a></p>
-        <p><a href="https://maps.google.com/?q=Salon Lumière 39 avenue des frères Lumière 69008 LYON" target="_blank" rel="noopener noreferrer">39 avenue des frères Lumière, 69008 LYON</a></p>
-      </div>
+  <footer class="site-footer">
+    <div class="footer-grid">
+        <div class="footer-col">
+            <h3>Salon Lumière</h3>
+            <p>Coiffeur et barbier depuis 1997, une expérience authentique et chaleureuse au cœur de Lyon.</p>
+        </div>
+        <div class="footer-col">
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="#artisan-barber">Artisan barbier</a></li>
+                <li><a href="#nos-services">Nos Services</a></li>
+                <li><a href="#prendre-rdv">Rendez-vous</a></li>
+                <li><a href="#expo">Exposition</a></li>
+                 <li><a href="/admin">Admin</a></li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h3>Horaires & Contact</h3>
+            <p>Du lundi au vendredi : 11h - 19h</p>
+            <p><a href="tel:+33478005164">Tél: 04 78 00 51 64</a></p>
+            <p><a href="https://maps.google.com/?q=Salon Lumière 39 avenue des frères Lumière 69008 LYON" target="_blank" rel="noopener noreferrer">39 avenue des frères Lumière, 69008 LYON</a></p>
+        </div>
+         <div class="footer-col">
+            <h3>Informations</h3>
+            <p>EURL : LES FAVORIS</p>
+            <p>RCS Lyon : 507 604 288</p>
+            <p>N° TVA : FR79507604288</p>
+        </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 Salon Lumière. Tous droits réservés.</p>
     </div>
   </footer>
 
@@ -142,10 +197,7 @@
     <div class="modal-content">
       <h3 id="modal-title"></h3>
       <div id="modal-body"></div>
-      <div id="modal-actions" class="form-actions">
-        <button id="modal-confirm-btn" class="modal-btn confirm">Confirmer</button>
-        <button id="modal-cancel-btn" class="modal-btn cancel">Annuler</button>
-      </div>
+      <div id="modal-actions" class="form-actions"></div>
     </div>
   </div>
 

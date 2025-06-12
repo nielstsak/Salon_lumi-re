@@ -1,238 +1,325 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("CLIENT-LOG: Initialisation du script administrateur.");
 
-    // --- API & UTILITIES ---
+    // --- API UTILITY ---
     const api = {
-        get: async (url) => fetch(url).then(handleResponse),
-        post: async (url, data) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handleResponse),
-        put: async (url, data) => fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handleResponse),
-        delete: async (url) => fetch(url, { method: 'DELETE' }).then(handleResponse),
+        get: (url) => fetch(url).then(handleResponse),
+        put: (url, data) => fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(handleResponse),
+        delete: (url) => fetch(url, { method: 'DELETE' }).then(handleResponse),
+        post: (url, data) => fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(handleResponse)
     };
 
     async function handleResponse(response) {
-        const json = await response.json();
-        if (!response.ok) return Promise.reject(json);
-        return json;
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
+        if (!response.ok) {
+            console.error('API Error Response:', data);
+            return Promise.reject(data); // Rejette avec le message d'erreur de l'API
+        }
+        return data;
     }
 
     // --- MODAL MANAGEMENT ---
     const modalContainer = document.getElementById('modal-container');
-    const modalTitle = document.getElementById('modal-title');
-    const modalBody = document.getElementById('modal-body');
-    const modalActions = document.getElementById('modal-actions');
-    let onConfirmCallback = null;
-
     function showModal(title, message, type = 'info', onConfirm = null) {
-        modalTitle.textContent = title;
-        modalBody.innerHTML = `<p>${message}</p>`;
-        onConfirmCallback = onConfirm;
-        let buttons = '';
-        if (type === 'confirm') {
-            buttons = `<button id="modal-confirm-btn" class="modal-btn confirm">Confirmer</button><button id="modal-cancel-btn" class="modal-btn cancel">Annuler</button>`;
-        } else {
-            buttons = `<button id="modal-close-btn" class="modal-btn">Fermer</button>`;
-        }
-        modalActions.innerHTML = buttons;
+        modalContainer.innerHTML = `
+            <div class="modal-content">
+              <h3 id="modal-title">${title}</h3>
+              <div id="modal-body"><p>${message}</p></div>
+              <div id="modal-actions" class="form-actions">
+                ${type === 'confirm'
+                  ? `<button id="modal-confirm-btn" class="modal-btn confirm">Confirmer</button>
+                     <button id="modal-cancel-btn" class="modal-btn cancel">Annuler</button>`
+                  : `<button id="modal-close-btn" class="modal-btn">Fermer</button>`
+                }
+              </div>
+            </div>
+        `;
         modalContainer.style.display = 'flex';
         
-        if (type === 'confirm') {
-            document.getElementById('modal-confirm-btn').addEventListener('click', () => {
-                if (onConfirmCallback) onConfirmCallback();
-                hideModal();
-            });
-            document.getElementById('modal-cancel-btn').addEventListener('click', hideModal);
-        } else {
-            document.getElementById('modal-close-btn').addEventListener('click', hideModal);
-        }
-    }
-    function hideModal() { modalContainer.style.display = 'none'; }
-
-    // --- TABS MANAGEMENT ---
-    const tabBtns = document.querySelectorAll('.admin-tab-btn');
-    const tabContents = document.querySelectorAll('.admin-tab-content');
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetId = btn.dataset.tab;
-            if (!targetId) return;
-            tabContents.forEach(tc => tc.style.display = 'none');
-            tabBtns.forEach(b => b.classList.remove('active-tab'));
-            document.getElementById(targetId).style.display = 'block';
-            btn.classList.add('active-tab');
-        });
-    });
-    if (tabBtns.length > 0) tabBtns[0].click();
-
-    // ===============================================
-    // =============== CALENDRIER TAB ================
-    // ===============================================
-    const adminState = { monthOffset: 0, selectedDay: new Date().toISOString().split('T')[0] };
-    const adminCalTitle = document.getElementById('admin-cal-title');
-    const adminMonthCalendar = document.getElementById('admin-month-calendar');
-    const calAdminPrev = document.getElementById('cal-admin-prev');
-    const calAdminNext = document.getElementById('cal-admin-next');
-    const adminChosenDaySpan = document.getElementById('admin-chosen-day');
-    const adminDayTableBody = document.getElementById('admin-day-appointments-table').querySelector('tbody');
-
-    async function loadAdminCalendar() {
-        const displayDate = new Date(new Date().getFullYear(), new Date().getMonth() + adminState.monthOffset, 1);
-        adminCalTitle.textContent = displayDate.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
-        calAdminNext.disabled = adminState.monthOffset >= 2;
-        calAdminPrev.disabled = adminState.monthOffset <= -2;
-
-        const year = displayDate.getFullYear(), month = displayDate.getMonth();
-        const lastDay = new Date(year, month + 1, 0).getDate();
-        const dayList = Array.from({ length: lastDay }, (_, i) => `${year}-${String(month + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`);
+        const closeModal = () => modalContainer.style.display = 'none';
         
-        try {
-            const { dayCounts } = await api.post('/api/admin/month-appointments', { days: dayList });
-            adminMonthCalendar.innerHTML = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<div class="calendar-day-name">${d}</div>`).join('');
-            const offset = new Date(year, month, 1).getDay() === 0 ? 6 : new Date(year, month, 1).getDay() - 1;
-            for (let i = 0; i < offset; i++) adminMonthCalendar.insertAdjacentHTML('beforeend', '<div></div>');
-            
-            dayList.forEach(dayStr => {
-                const cell = document.createElement('div');
-                cell.className = 'calendar-day available';
-                if (dayStr === adminState.selectedDay) cell.classList.add('selected');
-                cell.textContent = new Date(dayStr + "T12:00:00").getDate();
-                if (dayCounts[dayStr] > 0) cell.innerHTML += `<span class="rdv-count-label">${dayCounts[dayStr]}</span>`;
-                cell.addEventListener('click', () => {
-                    adminState.selectedDay = dayStr;
-                    loadAdminDayAppointments();
-                    loadAdminCalendar(); // Re-render to update selection style
-                });
-                adminMonthCalendar.appendChild(cell);
-            });
-        } catch (error) { showModal('Erreur', 'Impossible de charger les données du calendrier.'); }
+        const confirmBtn = document.getElementById('modal-confirm-btn');
+        const cancelBtn = document.getElementById('modal-cancel-btn');
+        const closeBtn = document.getElementById('modal-close-btn');
+
+        if (confirmBtn) confirmBtn.onclick = () => { if (onConfirm) onConfirm(); closeModal(); };
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+        if (closeBtn) closeBtn.onclick = closeModal;
     }
     
-    async function loadAdminDayAppointments() {
-        adminChosenDaySpan.textContent = new Date(adminState.selectedDay + "T12:00:00").toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-        adminDayTableBody.innerHTML = `<tr><td colspan="6">Chargement...</td></tr>`;
+    // --- UI ELEMENTS & STATE ---
+    const elements = {
+        tabs: document.querySelectorAll('.admin-tab-btn'),
+        contents: document.querySelectorAll('.admin-tab-content'),
+        kpiAppointments: document.getElementById('kpi-daily-appointments'),
+        kpiRevenue: document.getElementById('kpi-daily-revenue'),
+        dailyChartCanvas: document.getElementById('daily-appointments-chart'),
+        servicesChartCanvas: document.getElementById('service-distribution-chart'),
+        calendarContainer: document.getElementById('calendar-container'),
+        servicesTableBody: document.querySelector('#services-table tbody'),
+        serviceForm: document.getElementById('service-form'),
+        serviceFormTitle: document.getElementById('service-form-title'),
+        serviceFormCancelBtn: document.getElementById('service-form-cancel'),
+        hoursTableBody: document.querySelector('#hours-table tbody'),
+        blocksTableBody: document.querySelector('#blocks-table tbody'),
+        blockForm: document.getElementById('block-form'),
+    };
+
+    let dailyChart, servicesChart, calendar;
+
+    // --- LOGIC FUNCTIONS BY TAB ---
+
+    async function loadDashboard() {
         try {
-            const appointments = await api.get(`/api/admin/day-appointments?day=${adminState.selectedDay}`);
-            adminDayTableBody.innerHTML = appointments.length === 0
-                ? '<tr><td colspan="6">Aucun rendez-vous pour ce jour.</td></tr>'
-                : appointments.map(rdv => `<tr>
-                    <td>${rdv.id}</td><td>${rdv.title}</td>
-                    <td>${new Date(rdv.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td>${new Date(rdv.end).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td>${rdv.phone || ''}</td><td class="action-cell"><button class="delete-btn" data-id="${rdv.id}">Supprimer</button></td>
-                   </tr>`).join('');
-        } catch (error) { adminDayTableBody.innerHTML = '<tr><td colspan="6">Erreur de chargement des rendez-vous.</td></tr>'; }
+            const [kpis, chartData] = await Promise.all([
+                api.get('/api/admin/kpis/daily'),
+                api.get('/api/admin/charts/weekly-overview')
+            ]);
+            elements.kpiAppointments.textContent = kpis.appointmentCount;
+            elements.kpiRevenue.textContent = `${kpis.estimatedRevenue.toFixed(2)} €`;
+            renderDailyAppointmentsChart(chartData.dailyAppointments);
+            renderServiceDistributionChart(chartData.serviceDistribution);
+        } catch (error) {
+            showModal('Erreur Dashboard', error.message || 'Impossible de charger les données du tableau de bord.');
+        }
     }
 
-    calAdminPrev.addEventListener('click', () => { adminState.monthOffset--; loadAdminCalendar(); });
-    calAdminNext.addEventListener('click', () => { adminState.monthOffset++; loadAdminCalendar(); });
-    adminDayTableBody.addEventListener('click', e => {
-        if (e.target.matches('.delete-btn')) {
-            showModal('Confirmation', "Supprimer ce rendez-vous ? L'action est irréversible.", 'confirm', async () => {
-                try { await api.delete(`/api/admin/appointments/${e.target.dataset.id}`); loadAdminDayAppointments(); loadAdminCalendar(); } 
-                catch (err) { showModal('Erreur', err.message || 'La suppression a échoué.'); }
-            });
-        }
-    });
+    function renderDailyAppointmentsChart({ labels, data }) {
+        if (!elements.dailyChartCanvas) return;
+        if (dailyChart) dailyChart.destroy();
+        dailyChart = new Chart(elements.dailyChartCanvas.getContext('2d'), {
+            type: 'bar', data: { labels, datasets: [{ label: 'RDV par jour', data, backgroundColor: 'rgba(212, 116, 99, 0.6)' }] },
+            options: { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+    }
 
-    // --- SERVICES TAB ---
-    const servicesTableBody = document.querySelector('#services-table tbody'), serviceForm = document.getElementById('service-form');
+    function renderServiceDistributionChart({ labels, data }) {
+        if (!elements.servicesChartCanvas) return;
+        if (servicesChart) servicesChart.destroy();
+        servicesChart = new Chart(elements.servicesChartCanvas.getContext('2d'), {
+            type: 'pie', data: { labels, datasets: [{ data, backgroundColor: ['#d47463', '#e8a89a', '#f5cec7', '#f2ebe9', '#6c757d', '#495057'] }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function initializeCalendar() {
+        if (!elements.calendarContainer || !window.FullCalendar) return;
+        calendar = new FullCalendar.Calendar(elements.calendarContainer, {
+            initialView: 'timeGridWeek', locale: 'fr',
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+            editable: true, events: '/api/admin/appointments',
+            slotMinTime: '09:00:00', slotMaxTime: '20:00:00',
+            eventDrop: handleEventMove, eventResize: handleEventMove,
+            eventClick: (info) => {
+                showModal('Supprimer RDV?', `Voulez-vous vraiment supprimer le RDV de "${info.event.title}"?`, 'confirm', async () => {
+                    try {
+                        await api.delete(`/api/admin/appointments/${info.event.id}`);
+                        info.event.remove();
+                        showModal('Succès', 'Rendez-vous supprimé.');
+                    } catch (err) {
+                        showModal('Erreur', err.message || 'Impossible de supprimer le rendez-vous.');
+                    }
+                });
+            }
+        });
+    }
+    
+    async function handleEventMove({ event, revert }) {
+        showModal('Confirmer le changement ?', `Déplacer ce RDV ?`, 'confirm', async () => {
+            try {
+                await api.put(`/api/admin/appointments/${event.id}/move`, { start: event.start.toISOString(), end: event.end.toISOString() });
+                showModal('Succès', 'Rendez-vous déplacé.');
+            } catch (err) {
+                showModal('Erreur', `La mise à jour a échoué: ${err.message}.`);
+                revert();
+            }
+        });
+    }
+    
     async function loadServices() {
         try {
-            servicesTableBody.innerHTML = (await api.get('/api/admin/services')).map(s => `<tr>
+            const services = await api.get('/api/admin/services');
+            elements.servicesTableBody.innerHTML = services.map(s => `<tr>
                 <td>${s.title}</td><td>${s.duration} min</td><td>${s.price.toFixed(2)} €</td>
-                <td class="action-cell"><button class="edit-btn" data-id="${s.id}">Modifier</button><button class="delete-btn" data-id="${s.id}">Supprimer</button></td>
+                <td class="action-cell">
+                    <button class="edit-btn modal-btn" data-id="${s.id}">Modifier</button>
+                    <button class="delete-btn modal-btn cancel" data-id="${s.id}">Supprimer</button>
+                </td>
             </tr>`).join('');
-        } catch { showModal('Erreur', 'Impossible de charger les services.'); }
-    }
-    servicesTableBody.addEventListener('click', async e => {
-        const id = e.target.dataset.id;
-        if (e.target.matches('.edit-btn')) {
-            const service = (await api.get('/api/admin/services')).find(s => s.id == id);
-            if (!service) return;
-            document.getElementById('service-form-title').textContent = "Modifier la prestation";
-            serviceForm.elements.id.value = service.id;
-            serviceForm.elements.title.value = service.title;
-            serviceForm.elements.duration.value = service.duration;
-            serviceForm.elements.price.value = service.price;
-        } else if (e.target.matches('.delete-btn')) {
-            showModal('Confirmation', "Supprimer cette prestation ?", 'confirm', async () => {
-                try { await api.delete(`/api/admin/services/${id}`); loadServices(); } 
-                catch (err) { showModal('Erreur', err.message || 'Suppression échouée.'); }
-            });
+        } catch(err) {
+            elements.servicesTableBody.innerHTML = `<tr><td colspan="4" class="error">Erreur de chargement des services: ${err.message}</td></tr>`;
         }
-    });
-    serviceForm.addEventListener('submit', async e => {
-        e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target));
-        const id = data.id;
-        const method = id ? 'put' : 'post';
-        const url = id ? `/api/admin/services/${id}` : '/api/admin/services';
-        try { await api[method](url, data); serviceForm.reset(); document.getElementById('service-form-title').textContent = "Ajouter une prestation"; loadServices(); } 
-        catch (err) { showModal('Erreur', err.message || 'Enregistrement échoué.'); }
-    });
-    document.getElementById('service-form-cancel').addEventListener('click', () => {
-        serviceForm.reset();
-        document.getElementById('service-form-title').textContent = "Ajouter une prestation";
-        serviceForm.elements.id.value = '';
-    });
+    }
 
+    function resetServiceForm() {
+        elements.serviceForm.reset();
+        elements.serviceForm.elements.id.value = '';
+        elements.serviceFormTitle.textContent = "Ajouter une prestation";
+    }
 
-    // --- HOURS TAB ---
-    const hoursTableBody = document.querySelector('#hours-table tbody');
     async function loadHours() {
         try {
             const hours = await api.get('/api/admin/hours');
-            const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-            hoursTableBody.innerHTML = Array.from({length: 7}, (_, i) => i + 1).map(d => {
-                const rowData = hours.find(h => h.day_of_week === d) || {};
-                return `<tr><td>${jours[d % 7]}</td>
+            const jours = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+            elements.hoursTableBody.innerHTML = Array.from({length: 7}, (_, i) => {
+                const day = i + 1;
+                const rowData = hours.find(h => h.day_of_week === day) || {};
+                return `<tr><td>${jours[day]}</td>
                            <td><input type="time" class="hour-start" value="${rowData.start || ''}"/></td>
                            <td><input type="time" class="hour-end" value="${rowData.end || ''}"/></td>
-                           <td><button class="modal-btn confirm" data-dow="${d}">Enregistrer</button></td></tr>`;
+                           <td><button class="modal-btn confirm" data-dow="${day}">Enregistrer</button></td></tr>`;
             }).join('');
-        } catch { showModal('Erreur', 'Impossible de charger les horaires.'); }
-    }
-    hoursTableBody.addEventListener('click', async e => {
-        if(e.target.matches('button')){
-            const tr = e.target.closest('tr');
-            try { await api.post('/api/admin/hours', { day_of_week: e.target.dataset.dow, start: tr.querySelector('.hour-start').value, end: tr.querySelector('.hour-end').value }); showModal('Succès', 'Horaire sauvegardé.'); } 
-            catch (err) { showModal('Erreur', err.message || 'Sauvegarde échouée.'); }
+        } catch(err) {
+            elements.hoursTableBody.innerHTML = `<tr><td colspan="4" class="error">Erreur de chargement des horaires.</td></tr>`;
         }
-    });
-
-    // --- BLOCKS TAB ---
-    const blocksTableBody = document.querySelector('#blocks-table tbody');
+    }
+    
     async function loadBlocks() {
         try {
-            blocksTableBody.innerHTML = (await api.get('/api/admin/blocks')).map(b => `<tr>
+            const blocks = await api.get('/api/admin/blocks');
+            elements.blocksTableBody.innerHTML = blocks.map(b => `<tr>
                 <td>${b.id}</td><td>${new Date(b.start).toLocaleString('fr-FR')}</td><td>${new Date(b.end).toLocaleString('fr-FR')}</td>
-                <td>${b.type}</td><td>${b.reason || ''}</td><td><button class="delete-btn" data-id="${b.id}">Supprimer</button></td>
-            </tr>`).join('');
-        } catch { showModal('Erreur', 'Impossible de charger les blocages.'); }
-    }
-    document.getElementById('block-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        try { await api.post('/api/admin/block', Object.fromEntries(new FormData(e.target))); showModal('Succès', 'Blocage ajouté.'); e.target.reset(); loadBlocks(); }
-        catch (err) { showModal('Erreur', err.message || 'Ajout échoué.'); }
-    });
-    document.getElementById('vacation-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        try { await api.post('/api/admin/vacation', Object.fromEntries(new FormData(e.target))); showModal('Succès', 'Vacances ajoutées.'); e.target.reset(); loadBlocks(); }
-        catch (err) { showModal('Erreur', err.message || 'Ajout échoué.'); }
-    });
-    blocksTableBody.addEventListener('click', e => {
-        if (e.target.matches('.delete-btn')) {
-            showModal('Confirmation', "Supprimer ce blocage ?", 'confirm', async () => {
-                try { await api.delete(`/api/admin/blocks/${e.target.dataset.id}`); loadBlocks(); }
-                catch (err) { showModal('Erreur', err.message || 'Suppression échouée.'); }
-            });
+                <td>${b.type}</td><td>${b.reason || ''}</td>
+                <td><button class="delete-btn modal-btn cancel" data-id="${b.id}">Supprimer</button></td></tr>`
+            ).join('');
+        } catch(err) {
+            elements.blocksTableBody.innerHTML = `<tr><td colspan="6" class="error">Erreur de chargement des blocages.</td></tr>`;
         }
-    });
+    }
+
+    // --- EVENT LISTENERS SETUP ---
+    function setupEventListeners() {
+        elements.tabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                elements.contents.forEach(content => content.style.display = 'none');
+                elements.tabs.forEach(t => t.classList.remove('active-tab'));
+                
+                const targetId = btn.dataset.tab;
+                document.getElementById(targetId).style.display = 'block';
+                btn.classList.add('active-tab');
+
+                if (targetId === 'planning-tab' && calendar) {
+                    setTimeout(() => calendar.render(), 10); // Léger délai pour assurer le rendu correct
+                }
+            });
+        });
+
+        elements.servicesTableBody.addEventListener('click', async (e) => {
+            const id = e.target.dataset.id;
+            if (e.target.matches('.edit-btn')) {
+                try {
+                    const service = await api.get(`/api/admin/services/${id}`);
+                    elements.serviceFormTitle.textContent = "Modifier la prestation";
+                    elements.serviceForm.elements.id.value = service.id;
+                    elements.serviceForm.elements.title.value = service.title;
+                    elements.serviceForm.elements.duration.value = service.duration;
+                    elements.serviceForm.elements.price.value = service.price;
+                } catch (err) {
+                    showModal('Erreur', `Impossible de charger le service: ${err.message}`);
+                }
+            } else if (e.target.matches('.delete-btn')) {
+                showModal('Confirmation', "Voulez-vous vraiment supprimer cette prestation ?", 'confirm', async () => {
+                    try {
+                        const result = await api.delete(`/api/admin/services/${id}`);
+                        await loadServices();
+                        showModal('Succès', result.message);
+                    } catch (err) {
+                        showModal('Erreur', err.message);
+                    }
+                });
+            }
+        });
+        
+        elements.serviceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const id = data.id;
+            const method = id ? 'put' : 'post';
+            const url = id ? `/api/admin/services/${id}` : '/api/admin/services';
+            
+            try {
+                const result = await api[method](url, data);
+                resetServiceForm();
+                await loadServices();
+                showModal('Succès', result.message);
+            } catch (err) {
+                showModal('Erreur', err.message);
+            }
+        });
+
+        elements.serviceFormCancelBtn.addEventListener('click', resetServiceForm);
+
+        elements.hoursTableBody.addEventListener('click', async (e) => {
+            if(e.target.matches('button')){
+                const tr = e.target.closest('tr');
+                const data = { 
+                    day_of_week: e.target.dataset.dow, 
+                    start: tr.querySelector('.hour-start').value || null, 
+                    end: tr.querySelector('.hour-end').value || null
+                };
+                try {
+                    const result = await api.post('/api/admin/hours', data); 
+                    showModal('Succès', result.message); 
+                } catch (err) {
+                    showModal('Erreur', err.message);
+                }
+            }
+        });
+
+        elements.blockForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            try {
+                const result = await api.post('/api/admin/block', data);
+                showModal('Succès', result.message);
+                e.target.reset();
+                await loadBlocks();
+            } catch (err) {
+                showModal('Erreur', err.message);
+            }
+        });
+
+        elements.blocksTableBody.addEventListener('click', (e) => {
+            if (e.target.matches('.delete-btn')) {
+                showModal('Confirmation', "Voulez-vous vraiment supprimer ce blocage ?", 'confirm', async () => {
+                    try {
+                        const result = await api.delete(`/api/admin/blocks/${e.target.dataset.id}`);
+                        await loadBlocks();
+                        showModal('Succès', result.message);
+                    } catch (err) {
+                        showModal('Erreur', err.message);
+                    }
+                });
+            }
+        });
+    }
 
     // --- INITIALIZATION ---
     function init() {
-        loadAdminCalendar();
-        loadAdminDayAppointments();
+        initializeCalendar();
+        setupEventListeners();
+        
+        // Charger les données pour tous les onglets
+        loadDashboard();
         loadServices();
         loadHours();
         loadBlocks();
+
+        // Afficher le premier onglet par défaut
+        if(elements.tabs.length > 0) {
+            elements.tabs[0].click();
+        }
     }
+    
     init();
 });
