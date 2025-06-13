@@ -1,0 +1,48 @@
+# Fichiers de log
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Fichiers de diagnostic générés lors de plantages
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Dépendances du projet
+# Le dossier contenant tous les paquets installés
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Fichiers de configuration de l'éditeur
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Fichiers de système d'exploitation
+.DS_Store
+Thumbs.db
+
+# Fichiers d'environnement
+# Contient les secrets et les variables de configuration
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fichiers de base de données SQLite
+# Ne pas versionner la base de données de développement/production
+*.db
+*.db-journal
+
+# Fichiers de build et de cache
+/build
+/dist
+.npm
